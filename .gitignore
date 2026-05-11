@@ -1,0 +1,8 @@
+﻿node_modules/
+vendor/
+.env
+*.log
+dist/
+storage/logs/
+storage/framework/cache/
+.DS_Store
