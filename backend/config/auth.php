@@ -42,6 +42,10 @@ return [
             'driver' => 'session',
             'provider' => 'users',
         ],
+        'api' => [
+            'driver' => 'jwt',        // เพิ่ม guard นี้
+            'provider' => 'users',
+        ],
     ],
 
     /*

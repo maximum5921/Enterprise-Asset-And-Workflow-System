@@ -1,25 +1,53 @@
 <?php
-
 namespace Database\Seeders;
 
+use App\Models\Role;
 use App\Models\User;
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\Hash;
 
-class DatabaseSeeder extends Seeder
+class RoleSeeder extends Seeder
 {
-    use WithoutModelEvents;
-
-    /**
-     * Seed the application's database.
-     */
     public function run(): void
     {
-        // User::factory(10)->create();
+        $roles = [
+            [
+                'name'         => 'admin',
+                'display_name' => 'Administrator',
+                'permissions'  => ['*'],  // ทุก permission
+            ],
+            [
+                'name'         => 'manager',
+                'display_name' => 'Manager',
+                'permissions'  => [
+                    'asset.view','asset.create','asset.edit',
+                    'workflow.view','workflow.approve','workflow.reject',
+                    'user.view','dashboard.view',
+                ],
+            ],
+            [
+                'name'         => 'employee',
+                'display_name' => 'Employee',
+                'permissions'  => [
+                    'asset.view',
+                    'workflow.view','workflow.create',
+                    'dashboard.view',
+                ],
+            ],
+        ];
 
-        User::factory()->create([
-            'name' => 'Test User',
-            'email' => 'test@example.com',
-        ]);
+        foreach ($roles as $role) {
+            Role::updateOrCreate(['name' => $role['name']], $role);
+        }
+
+        // สร้าง admin user ตัวแรก
+        User::updateOrCreate(
+            ['email' => 'admin@enterprise.local'],
+            [
+                'name'     => 'System Admin',
+                'password' => Hash::make('Admin@1234'),
+                'role_id'  => Role::where('name','admin')->value('id'),
+            ]
+        );
     }
 }
