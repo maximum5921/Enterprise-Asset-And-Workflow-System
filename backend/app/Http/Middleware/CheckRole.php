@@ -1,4 +1,5 @@
 <?php
+
 namespace App\Http\Middleware;
 
 use Closure;
@@ -25,10 +26,3 @@ class CheckRole
         return $next($request);
     }
 }
-
-# bootstrap/app.php — ลงทะเบียน middleware
-->withMiddleware(function (Middleware $middleware) {
-    $middleware->alias([
-        'role' => \App\Http\Middleware\CheckRole::class,
-    ]);
-})

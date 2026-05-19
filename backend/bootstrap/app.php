@@ -3,6 +3,7 @@
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Auth\AuthenticationException;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -11,9 +12,24 @@ return Application::configure(basePath: dirname(__DIR__))
         commands: __DIR__.'/../routes/console.php',
         health: '/up',
     )
-    ->withMiddleware(function (Middleware $middleware): void {
-        //
+
+   ->withMiddleware(function (Middleware $middleware): void {
+    $middleware->redirectGuestsTo('/api/v1/auth/login');  // เพิ่มบรรทัดนี้
+    $middleware->alias([
+        'role' => \App\Http\Middleware\CheckRole::class,
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        //
-    })->create();
+
+        $exceptions->render(function (
+            AuthenticationException $e,
+            $request
+        ) {
+            return response()->json([
+                'message' => 'Unauthenticated',
+            ], 401);
+        });
+
+    })
+
+    ->create();

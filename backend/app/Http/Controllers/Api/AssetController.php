@@ -1,49 +1,72 @@
 <?php
-
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
+use App\Http\Requests\{StoreAssetRequest, UpdateAssetRequest};
+use App\Http\Resources\AssetResource;
+use App\Models\Asset;
+use App\Services\AssetService;
+use Illuminate\Http\{JsonResponse, Request};
 
 class AssetController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
-    public function index()
+    public function __construct(private AssetService $service) {}
+
+    // GET /api/v1/assets
+    public function index(Request $request): JsonResponse
     {
-        //
+        $assets = $this->service->list($request->only([
+            'search','status','category','owner_id',
+            'sort','direction','per_page',
+        ]));
+
+        return AssetResource::collection($assets)
+            ->response()
+            ->setStatusCode(200);
     }
 
-    /**
-     * Store a newly created resource in storage.
-     */
-    public function store(Request $request)
+    // GET /api/v1/assets/{id}
+    public function show(Asset $asset): JsonResponse
     {
-        //
+        $asset->load(['owner','histories.actor','attachments']);
+
+        return (new AssetResource($asset))
+            ->response()
+            ->setStatusCode(200);
     }
 
-    /**
-     * Display the specified resource.
-     */
-    public function show(string $id)
+    // POST /api/v1/assets
+    public function store(StoreAssetRequest $request): JsonResponse
     {
-        //
+        $asset = $this->service->create($request->validated());
+
+        return (new AssetResource($asset))
+            ->response()
+            ->setStatusCode(201);
     }
 
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, string $id)
+    // PUT /api/v1/assets/{id}
+    public function update(UpdateAssetRequest $request, Asset $asset): JsonResponse
     {
-        //
+        $asset = $this->service->update($asset, $request->validated());
+
+        return (new AssetResource($asset))
+            ->response()
+            ->setStatusCode(200);
     }
 
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(string $id)
+    // DELETE /api/v1/assets/{id}
+    public function destroy(Asset $asset): JsonResponse
     {
-        //
+        $this->service->delete($asset);
+        return response()->json(['message' => 'Asset deleted'], 200);
+    }
+
+    // POST /api/v1/assets/{id}/assign
+    public function assign(Request $request, Asset $asset): JsonResponse
+    {
+        $request->validate(['user_id' => 'required|exists:users,id']);
+        $asset = $this->service->assignTo($asset, $request->user_id);
+        return (new AssetResource($asset))->response()->setStatusCode(200);
     }
 }

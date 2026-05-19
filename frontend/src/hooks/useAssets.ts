@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { assetsApi, type AssetFilters } from '@/api/assets'
+import type { Asset } from '@/types'
 
-// ── Query Keys ──────────────────────────────
 export const assetKeys = {
   all:     ['assets'] as const,
   lists:   () => [...assetKeys.all, 'list'] as const,
@@ -10,12 +10,11 @@ export const assetKeys = {
   detail:  (id: string) => [...assetKeys.details(), id] as const,
 }
 
-// ── Queries ──────────────────────────────────
 export const useAssets = (filters: AssetFilters = {}) =>
   useQuery({
     queryKey: assetKeys.list(filters),
     queryFn:  () => assetsApi.list(filters),
-    staleTime: 30_000,  // cache 30 วิ
+    staleTime: 30_000,
   })
 
 export const useAsset = (id: string) =>
@@ -25,14 +24,11 @@ export const useAsset = (id: string) =>
     enabled:  !!id,
   })
 
-// ── Mutations ────────────────────────────────
 export const useCreateAsset = () => {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: assetsApi.create,
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: assetKeys.lists() })
-    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: assetKeys.lists() }),
   })
 }
 
@@ -52,9 +48,7 @@ export const useDeleteAsset = () => {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: assetsApi.delete,
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: assetKeys.lists() })
-    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: assetKeys.lists() }),
   })
 }
 

@@ -11,8 +11,14 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('audit_logs', function (Blueprint $table) {
+        Schema::create('roles', function (Blueprint $table) {
             $table->id();
+
+            $table->string('name')->unique();
+            $table->string('display_name');
+
+            $table->json('permissions')->nullable();
+
             $table->timestamps();
         });
     }
@@ -22,6 +28,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('audit_logs');
+        Schema::dropIfExists('roles');
     }
 };

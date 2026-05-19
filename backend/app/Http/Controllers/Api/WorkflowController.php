@@ -1,49 +1,73 @@
 <?php
-
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
+use App\Http\Requests\StoreWorkflowRequest;
+use App\Http\Resources\WorkflowResource;
+use App\Models\WorkflowRequest;
+use App\Services\WorkflowService;
+use Illuminate\Http\{JsonResponse, Request};
 
 class WorkflowController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
-    public function index()
+    public function __construct(private WorkflowService $service) {}
+
+    // GET /api/v1/workflows
+    public function index(Request $request): JsonResponse
     {
-        //
+        $workflows = $this->service->list($request->only([
+            'status','type','requester_id','per_page',
+        ]));
+
+        return WorkflowResource::collection($workflows)
+            ->response()
+            ->setStatusCode(200);
     }
 
-    /**
-     * Store a newly created resource in storage.
-     */
-    public function store(Request $request)
+    // GET /api/v1/workflows/{id}
+    public function show(WorkflowRequest $workflow): JsonResponse
     {
-        //
+        $workflow->load(['requester','approver','asset','logs.actor','attachments']);
+        return (new WorkflowResource($workflow))->response();
     }
 
-    /**
-     * Display the specified resource.
-     */
-    public function show(string $id)
+    // POST /api/v1/workflows
+    public function store(StoreWorkflowRequest $request): JsonResponse
     {
-        //
+        $workflow = $this->service->create($request->validated());
+        return (new WorkflowResource($workflow))->response()->setStatusCode(201);
     }
 
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, string $id)
+    // PUT /api/v1/workflows/{id}/approve
+    public function approve(Request $request, WorkflowRequest $workflow): JsonResponse
     {
-        //
+        $request->validate(['notes' => 'nullable|string|max:500']);
+
+        try {
+            $workflow = $this->service->approve($workflow, $request->notes ?? '');
+            return (new WorkflowResource($workflow))->response();
+        } catch (Exception $e) {
+            return response()->json(['error' => $e->getMessage()], 422);
+        }
     }
 
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(string $id)
+    // PUT /api/v1/workflows/{id}/reject
+    public function reject(Request $request, WorkflowRequest $workflow): JsonResponse
     {
-        //
+        $request->validate(['reason' => 'required|string|max:500']);
+
+        try {
+            $workflow = $this->service->reject($workflow, $request->reason);
+            return (new WorkflowResource($workflow))->response();
+        } catch (Exception $e) {
+            return response()->json(['error' => $e->getMessage()], 422);
+        }
+    }
+
+    // PUT /api/v1/workflows/{id}/complete
+    public function complete(WorkflowRequest $workflow): JsonResponse
+    {
+        $workflow = $this->service->complete($workflow);
+        return (new WorkflowResource($workflow))->response();
     }
 }

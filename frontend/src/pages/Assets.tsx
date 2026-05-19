@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Plus, Search, Filter } from 'lucide-react'
+import { Plus, Search } from 'lucide-react'
 import { useAssets, useDeleteAsset } from '@/hooks/useAssets'
 import { useIsAdmin } from '@/stores/auth'
 import { cn, ASSET_STATUS_STYLES } from '@/lib/utils'

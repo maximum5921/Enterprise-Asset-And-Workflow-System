@@ -1,4 +1,5 @@
-import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios'
+import axios, { AxiosError } from 'axios'
+import type { InternalAxiosRequestConfig } from 'axios'
 import { useAuthStore } from '@/stores/auth'
 
 export const api = axios.create({
