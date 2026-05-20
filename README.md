@@ -98,7 +98,7 @@ docker compose exec backend php artisan migrate --seed
 
 ### 5. Open browser
 ```
-[http://localhost](http://localhost:3000/)
+http://localhost:3000/
 ```
 
 ---
