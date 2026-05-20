@@ -1,1 +1,168 @@
-﻿
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+
+  # ─────────────────────────────────────────────
+  # JOB 1: Test Backend (Laravel + PHPUnit)
+  # ─────────────────────────────────────────────
+  test-backend:
+    name: 🧪 Laravel Tests
+    runs-on: ubuntu-latest
+
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: secret
+          MYSQL_DATABASE: enterprise_test
+        options: >-
+          --health-cmd="mysqladmin ping -h localhost -usecret -psecret"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+        ports:
+          - 3306:3306
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+
+    steps:
+      - name: checkout code
+        uses: actions/checkout@v4
+
+      - name: setup PHP 8.3
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: pdo_mysql, redis, zip, gd, bcmath, mbstring
+          coverage: xdebug
+
+      - name: cache composer packages
+        uses: actions/cache@v4
+        with:
+          path: backend/vendor
+          key: composer-${{ hashFiles('backend/composer.lock') }}
+          restore-keys: composer-
+
+      - name: install composer dependencies
+        run: cd backend && composer install --no-interaction --prefer-dist --no-progress
+
+      - name: copy .env.testing
+        run: |
+          cd backend
+          cp .env.testing.example .env.testing
+          php artisan key:generate --env=testing
+
+      - name: run migrations
+        run: |
+          cd backend
+          php artisan migrate --env=testing --force
+        env:
+          DB_HOST: 127.0.0.1
+          DB_PORT: 3306
+          DB_DATABASE: enterprise_test
+          DB_USERNAME: root
+          DB_PASSWORD: secret
+
+      - name: run tests
+        run: |
+          cd backend
+          php artisan test --env=testing --coverage --min=60
+        env:
+          DB_HOST: 127.0.0.1
+          DB_PORT: 3306
+          DB_DATABASE: enterprise_test
+          DB_USERNAME: root
+          DB_PASSWORD: secret
+          CACHE_STORE: array
+          QUEUE_CONNECTION: sync
+
+  # ─────────────────────────────────────────────
+  # JOB 2: Test Frontend (TypeScript + Vitest)
+  # ─────────────────────────────────────────────
+  test-frontend:
+    name: 🧪 React Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: checkout code
+        uses: actions/checkout@v4
+
+      - name: setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: install dependencies
+        run: cd frontend && npm ci
+
+      - name: typescript type check
+        run: cd frontend && npx tsc --noEmit
+
+      - name: build check
+        run: cd frontend && npm run build
+        env:
+          VITE_API_URL: http://localhost
+
+  # ─────────────────────────────────────────────
+  # JOB 3: Deploy (main branch only)
+  # ─────────────────────────────────────────────
+  deploy:
+    name: 🚀 Deploy to Production
+    needs: [test-backend, test-frontend]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+
+    environment:
+      name: production
+      url: ${{ secrets.APP_URL }}
+
+    steps:
+      - name: checkout code
+        uses: actions/checkout@v4
+
+      - name: deploy via SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          port: ${{ secrets.SERVER_PORT || 22 }}
+          script: |
+            set -e
+            cd /opt/enterprise-system
+
+            echo "── [1/6] Pull latest code ──"
+            git pull origin main
+
+            echo "── [2/6] Build React ──"
+            cd frontend
+            npm ci --silent
+            npm run build
+            cd ..
+
+            echo "── [3/6] Restart containers ──"
+            docker compose up -d --build --remove-orphans
+
+            echo "── [4/6] Run Laravel tasks ──"
+            docker compose exec -T backend php artisan migrate --force
+            docker compose exec -T backend php artisan config:cache
+            docker compose exec -T backend php artisan route:cache
+            docker compose exec -T backend php artisan view:cache
+            docker compose exec -T backend php artisan queue:restart
+
+            echo "── [5/6] Health check ──"
+            sleep 5
+            curl -f http://localhost/api/v1/health || (echo "Health check failed!" && exit 1)
+
+            echo "── [6/6] Done! ✅ ──"
