@@ -17,7 +17,7 @@ export default function Workflows() {
   const [approveNote, setNote]    = useState('')
   const [rejectReason, setReason] = useState('')
 
-  const { data, isLoading }   = useWorkflows({ status, per_page: 20 })
+  const { data, isLoading } = useWorkflows({ status })
   const approveMutation        = useApproveWorkflow()
   const rejectMutation         = useRejectWorkflow()
 
@@ -46,7 +46,7 @@ export default function Workflows() {
       <div className="space-y-3">
         {isLoading ? [...Array(4)].map((_,i) => (
           <div key={i} className="h-20 bg-gray-100 rounded-xl animate-pulse" />
-        )) : data?.data.map(wf => (
+        )) : data?.data.map((wf: any) => (
           <div key={wf.id}
             className="bg-white rounded-xl border shadow-sm p-4 hover:border-blue-200 transition-colors cursor-pointer"
             onClick={() => setSelected(selected===wf.id ? null : wf.id)}>
@@ -54,12 +54,12 @@ export default function Workflows() {
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-1">
                   <span className={cn('text-xs px-2 py-0.5 rounded-full font-medium',
-                    WORKFLOW_STATUS_STYLES[wf.status])}>
+                    WORKFLOW_STATUS_STYLES[wf.status as keyof typeof WORKFLOW_STATUS_STYLES])}>
                     {wf.status}
                   </span>
                   <span className={cn('text-xs px-2 py-0.5 rounded-full',
-                    PRIORITY_LABEL[wf.priority]?.style)}>
-                    {PRIORITY_LABEL[wf.priority]?.label}
+                    PRIORITY_LABEL[wf.priority as keyof typeof PRIORITY_LABEL]?.style)}>
+                    {PRIORITY_LABEL[wf.priority as keyof typeof PRIORITY_LABEL]?.label}
                   </span>
                   <span className="text-xs text-gray-400 capitalize">{wf.type}</span>
                 </div>
